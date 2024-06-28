@@ -14,7 +14,7 @@ maintainers = [
   "Helio Chissini de Castro <heliocastro@gmail.com>"
   ]
 name = "yaml-settings-pydantic"
-version = "2.1"
+version = "2.0.2"
 description = "A tool to easily load (many) JSON/YAML files as pydantic settings."
 readme = "README.rst"
 keywords = [
@@ -37,6 +37,7 @@ classifiers = [
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -54,11 +55,12 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-    python = "^3.10"
-    pydantic = "^2.7.4"
-    pydantic-settings = "^2.3.4"
-    pyyaml = "^6.0.1"
-    jsonpath-ng = "^1.6.1"
+python = "^3.9"
+pydantic = "^2.8.0"
+pydantic-settings = "^2.3.4"
+pyyaml = "^6.0.1"
+jsonpath-ng = "^1.6.1"
+click = "^8.1.7"
 
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^5.0.0"
@@ -66,6 +68,9 @@ pre-commit = "^3.7.1"
 ruff = "^0.5.0"
 types-pyyaml = "^6.0.12.20240311"
 mypy = "^1.10.1"
+pytest-mypy-plugins = "^3.1.2"
+types-toml = "^0.10.8.20240310"
+bumpver = "^2023.1129"
 
 [tool.poetry.group.extras.dependencies]
 twine = "^5.1.1"
@@ -138,15 +143,21 @@ pytest-mypy = "^0.10.3"
     init_typed = true
     warn_required_dynamic_aliases = true
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
     # Unlike Flake8, default to a complexity level of 10.
     max-complexity = 10
 
 [tool.ruff]
     fix = true
     line-length = 120
+
+    # Assume Python 3.9
+    target-version = "py39"
+
+[tool.ruff.lint]
     ignore = [
         'N802',   # function name should be lowercase
+        'N806',   # function should be lowercase
         'SIM105', # Suggest contextlib instead of try/except with pass
     ]
     extend-select = [
@@ -154,7 +165,6 @@ pytest-mypy = "^0.10.3"
         "W",   # pycodestyle warning
         "F",   # pyflakes
         "A",   # flakes8-builtins
-        "COM", # flakes8-commas
         "C4",  # flake8-comprehensions
         "Q",   # flake8-quotes
         "SIM", # flake8-simplify
@@ -165,43 +175,15 @@ pytest-mypy = "^0.10.3"
         "S",   # bandit
     ]
 
-    # Exclude a variety of commonly ignored directories.
-    extend-exclude = [
-        ".bzr",
-        ".direnv",
-        ".eggs",
-        ".git",
-        ".hg",
-        ".mypy_cache",
-        ".nox",
-        ".pants.d",
-        ".ruff_cache",
-        ".svn",
-        ".tox",
-        ".venv",
-        "__pypackages__",
-        "_build",
-        "buck-out",
-        "build",
-        "dist",
-        "node_modules",
-        "venv",
-    ]
-    per-file-ignores = {}
-
     # Allow unused variables when underscore-prefixed.
     dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-    # Assume Python 3.10.
-    target-version = "py310"
 
-[tool.ruff.flake8-tidy-imports]
+[tool.ruff.lint.flake8-tidy-imports]
     ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
     required-imports = ["from __future__ import annotations"]
-    # use_parentheses = true
-    # line_length = 120
 
 [tool.pyright]
     reportUnboundVariable = false
@@ -217,5 +199,5 @@ push            = false
 
 
 [tool.bumpver.file_patterns]
-"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
+"pyproject.toml" = ['version = "{version}"']
 "yaml_settings_pydantic/__init__.py" = ["{version}"]
