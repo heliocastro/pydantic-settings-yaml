@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import sys
 from shutil import get_terminal_size
@@ -19,7 +21,7 @@ def show(config_cls: Type[BaseYamlSettings]) -> None:
             settings.model_dump(),
             default=str,
             indent=2,
-        )
+        ),
     )
     print(SEP)
 

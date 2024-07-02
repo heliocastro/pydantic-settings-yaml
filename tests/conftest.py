@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import logging
+from collections.abc import Generator
 from os import mkdir, path, remove
 from random import randint
 from secrets import token_hex, token_urlsafe
-from typing import Any, Dict, Generator, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pytest
 import yaml
@@ -40,7 +43,7 @@ def _create_dummy(
     """
 
     # Generate keys for our random dictionary.
-    result = dict(((key, token_urlsafe(8)) for key in keys))
+    result = dict((key, token_urlsafe(8)) for key in keys)
 
     # Check recursion limit.
     if nested_keys is not None and -1 < current_depth < max_depth:
@@ -56,7 +59,7 @@ def _create_dummy(
                     ),
                 )
                 for key in nested_keys
-            )
+            ),
         )
 
     return result
@@ -74,9 +77,7 @@ def create_dummies(
     """
 
     _keys: Tuple[str, ...] = (
-        keys
-        if keys is not None
-        else tuple(token_hex(8) for _ in range(0, randint(0, DEFAULT_KEYS_PROB)))
+        keys if keys is not None else tuple(token_hex(8) for _ in range(0, randint(0, DEFAULT_KEYS_PROB)))
     )
     _nested_keys: Tuple[str, ...] = (
         nested_keys
@@ -87,10 +88,7 @@ def create_dummies(
     max_depth = max_depth if max_depth is not None else DEFAULT_MAX_DEPTH
     return tuple(
         item
-        for item in (
-            _create_dummy(_keys, nested_keys=_nested_keys, max_depth=max_depth)
-            for _ in range(n_results)
-        )
+        for item in (_create_dummy(_keys, nested_keys=_nested_keys, max_depth=max_depth) for _ in range(n_results))
         if item is not None
     )
 

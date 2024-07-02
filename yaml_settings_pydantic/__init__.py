@@ -12,21 +12,24 @@ To include logging, set the environment variable
 :class CreateYamlSettings: The ``PydanticBaseSettingsSource``.
 :class BaseYamlSettings: The main class that consumers will want to use.
 """
+
+from __future__ import annotations
+
 import logging
+from collections.abc import Sequence
 from os import environ, path
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
     List,
     Literal,
     Optional,
-    Sequence,
     Set,
     Tuple,
     Type,
     TypeVar,
-    TYPE_CHECKING,
 )
 
 from jsonpath_ng import parse
@@ -114,7 +117,9 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         return self._loaded
 
     def get_field_value(
-        self, field: FieldInfo, field_name: str
+        self,
+        field: FieldInfo,
+        field_name: str,
     ) -> tuple[Any, str, bool]:
         """Required by pydantic."""
 
@@ -135,7 +140,8 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         return reload
 
     def validate_files(
-        self, settings_cls: Type[BaseSettings]
+        self,
+        settings_cls: Type[BaseSettings],
     ) -> Dict[str, YamlFileConfigDict]:
         value: Dict[str, YamlFileConfigDict] | str | Sequence[str] | None
         value = self.get_settings_cls_value(settings_cls, "files", None)
@@ -144,11 +150,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         # Validate is sequence, not none
         if value is None:
             raise ValueError(f"`{item}` cannot be `None`.")
-        elif (
-            not isinstance(value, Sequence)
-            and not isinstance(value, set)
-            and not isinstance(value, dict)
-        ):
+        elif not isinstance(value, Sequence) and not isinstance(value, set) and not isinstance(value, dict):
             msg = "`{0}` must be a sequence or set, got type `{1}`."
             raise ValueError(msg.format(item, type(value)))
 
@@ -258,14 +260,8 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         }
         if bad_files:
             fmt = "  - `file={0}`\n`subpath={1}`"
-            msg = "\n".join(
-                fmt.format(bad_file, self.files[bad_file]["subpath"])
-                for bad_file in bad_files
-            )
-            msg = (
-                "Input files must deserialize to dictionaries at their "
-                f"specified subpaths:\n{msg}"
-            )
+            msg = "\n".join(fmt.format(bad_file, self.files[bad_file]["subpath"]) for bad_file in bad_files)
+            msg = "Input files must deserialize to dictionaries at their " f"specified subpaths:\n{msg}"
             raise ValueError(msg)
 
         logger.debug("Merging file results.")
@@ -289,7 +285,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         # If any required files are missing, raise an error.
         if len(bad := required - existing):
             raise ValueError(
-                f"The following files are required but do not exist: `{bad}`."
+                f"The following files are required but do not exist: `{bad}`.",
             )
 
         # No required files are missing, and none exist.
@@ -299,9 +295,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         # Bulk load files (and bulk manage IO closing/opening).
         logger.debug("Loading files %s.", ", ".join(self.files))
         files = {filepath: open(filepath) for filepath in existing}
-        loaded_raw: Dict[str, Any] = {
-            filepath: safe_load(file) for filepath, file in files.items()
-        }
+        loaded_raw: Dict[str, Any] = {filepath: safe_load(file) for filepath, file in files.items()}
         logger.debug("Closing files.")
         _ = set(file.close() for file in files.values())
 

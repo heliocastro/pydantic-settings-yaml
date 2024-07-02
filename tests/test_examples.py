@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -12,7 +14,8 @@ from .examples import ExplicitSettings, MinimalSettings, SubpathSettings
 
 
 @pytest.mark.parametrize(
-    "Settings", [ExplicitSettings, MinimalSettings, SubpathSettings]
+    "Settings",
+    [ExplicitSettings, MinimalSettings, SubpathSettings],
 )
 class TestExampleCanOverWrite:
     env_extras = dict(
@@ -34,9 +37,7 @@ class TestExampleCanOverWrite:
         s = Settings(**raw)  # type: ignore
 
         assert s.myFirstSetting == 1234, "Failed to load first levl settings."
-        assert (
-            s.myDatabaseSettings.hostspec.username == "cornpuff"
-        ), "Failed to load nested configuration."
+        assert s.myDatabaseSettings.hostspec.username == "cornpuff", "Failed to load nested configuration."
 
     @mock.patch.dict(os.environ, **env_extras)
     def test_envvars(self, Settings):

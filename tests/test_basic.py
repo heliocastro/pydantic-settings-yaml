@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from typing import Set, Tuple, Type
 
 import pytest
 import yaml
+
 from yaml_settings_pydantic import (
     DEFAULT_YAML_FILE_CONFIG_DICT,
     BaseYamlSettings,
@@ -57,7 +60,8 @@ class TestCreateYamlSettings:
         yaml_settings()
 
     def from_model_config(
-        self, **kwargs
+        self,
+        **kwargs,
     ) -> Tuple[CreateYamlSettings, Type[BaseYamlSettings]]:
         Settings = type(
             "Settings",
@@ -113,8 +117,8 @@ class TestCreateYamlSettings:
                 "foo.yaml": YamlFileConfigDict(
                     required=False,
                     subpath=None,
-                )
-            }
+                ),
+            },
         )
         assert make.files.get("foo.yaml")
         make.load()

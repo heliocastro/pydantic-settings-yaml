@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from os import path
 from typing import Dict
 
 from pydantic import BaseModel
 from pydantic_settings import SettingsConfigDict
+
 from yaml_settings_pydantic import (
     BaseYamlSettings,
     YamlFileConfigDict,
@@ -34,6 +37,7 @@ class MinimalSettings(BaseYamlSettings):
 
         class MyNestedDatabaseSettings(BaseModel):
             "Second order nested schema."
+
             host: str
             port: int
             username: str
@@ -69,8 +73,9 @@ class ExplicitSettings(MinimalSettings):
         env_nested_delimiter="__",
         yaml_files={
             herepath("my-settings.yaml"): YamlFileConfigDict(
-                subpath=None, required=True
-            )
+                subpath=None,
+                required=True,
+            ),
         },
         yaml_reload=True,
     )
@@ -121,7 +126,7 @@ class SubpathSettings(ExplicitSettings):
             herepath("subpath-settings.yaml"): YamlFileConfigDict(
                 subpath="nested.config.[0]",
                 required=True,
-            )
+            ),
         },
         yaml_reload=True,
     )

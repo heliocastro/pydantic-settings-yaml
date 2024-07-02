@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 
 from .__init__ import __version__
