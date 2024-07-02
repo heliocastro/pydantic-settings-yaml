@@ -17,30 +17,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from os import environ, path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-)
+from os import environ
+from pathlib import Path, PosixPath
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar
 
 from jsonpath_ng import parse
 from pydantic.fields import FieldInfo
 from pydantic.v1.utils import deep_update
-from pydantic_settings import (
-    BaseSettings,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-)
-from typing_extensions import NotRequired, Self, TypedDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from typing_extensions import NotRequired, TypedDict
 from yaml import safe_load
 
 __version__ = "2.0.2"
@@ -53,7 +38,7 @@ T = TypeVar("T")
 
 
 class YamlFileConfigDict(TypedDict):
-    subpath: Optional[str]
+    subpath: str | None
     required: bool
 
 
@@ -61,8 +46,17 @@ DEFAULT_YAML_FILE_CONFIG_DICT = YamlFileConfigDict(subpath=None, required=True)
 
 
 class YamlSettingsConfigDict(SettingsConfigDict, TypedDict):
-    yaml_files: Set[str] | Sequence[str] | Dict[str, YamlFileConfigDict] | str
-    yaml_reload: NotRequired[Optional[bool]]
+    yaml_files: (
+        set[Path]
+        | Sequence[Path]
+        | dict[Path, YamlFileConfigDict]
+        | Path
+        | set[str]
+        | Sequence[str]
+        | dict[str, YamlFileConfigDict]
+        | str
+    )
+    yaml_reload: NotRequired[bool | None]
 
 
 class CreateYamlSettings(PydanticBaseSettingsSource):
@@ -79,20 +73,20 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
     """
 
     # Info
-    files: Dict[str, YamlFileConfigDict]
+    files: dict[Path, YamlFileConfigDict]
     reload: bool
 
     # State
-    _loaded: Optional[Dict[str, Any]] = None
+    _loaded: dict[str, Any] | None = None
 
     # ----------------------------------------------------------------------- #
     # Top level stuff.
 
-    def __init__(self, settings_cls: Type[BaseSettings]):
+    def __init__(self, settings_cls: type[BaseSettings]):
         self.reload = self.validate_reload(settings_cls)
         self.files = self.validate_files(settings_cls)
 
-    def __call__(self) -> Dict[str, Any]:
+    def __call__(self) -> dict[str, Any]:
         """Yaml settings loader for a single file.
         :returns: Yaml from :attr:`files` unmarshalled and combined by update.
         """
@@ -100,7 +94,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         return self.loaded
 
     @property
-    def loaded(self) -> Dict[str, Any]:
+    def loaded(self) -> dict[str, Any]:
         """Loaded file(s) content.
 
         Always loads content the first time. On subsequent calls, returns
@@ -129,7 +123,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
     # ----------------------------------------------------------------------- #
     # Field validation.
 
-    def validate_reload(self, settings_cls: Type[BaseSettings]) -> bool:
+    def validate_reload(self, settings_cls: type[BaseSettings]) -> bool:
         logger.debug("`%s` validating `%s`.", self, settings_cls.__name__)
         reload: bool = self.get_settings_cls_value(
             settings_cls,
@@ -141,32 +135,35 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
 
     def validate_files(
         self,
-        settings_cls: Type[BaseSettings],
-    ) -> Dict[str, YamlFileConfigDict]:
-        value: Dict[str, YamlFileConfigDict] | str | Sequence[str] | None
+        settings_cls: type[BaseSettings],
+    ) -> dict[Path, YamlFileConfigDict]:
+        value: dict[Path, YamlFileConfigDict] | str | Sequence[str] | None
         value = self.get_settings_cls_value(settings_cls, "files", None)
         item = f"{settings_cls.__name__}.model_config.yaml_files"
 
         # Validate is sequence, not none
         if value is None:
             raise ValueError(f"`{item}` cannot be `None`.")
-        elif not isinstance(value, Sequence) and not isinstance(value, set) and not isinstance(value, dict):
+        elif not isinstance(value, Path) and not isinstance(value, set) and not isinstance(value, dict):
             msg = "`{0}` must be a sequence or set, got type `{1}`."
             raise ValueError(msg.format(item, type(value)))
 
-        # If its a string, make it into a tuple.
+        # If its a single value, make it into a tuple.
         # This will become a dict in the next step.
-        if isinstance(value, str):
-            logger.debug(f"`{item}` was a string.")
+        if isinstance(value, PosixPath):
+            logger.debug(f"`{item}` was a PosixPath.")
             value = (value,)
+        elif isinstance(value, str):
+            logger.debug(f"`{item}` was a String.")
+            value = (Path(value),)
 
-        if any(not isinstance(item, str) for item in value):
-            raise ValueError("All items in `files` must be strings.")
+        if any(not isinstance(item, PosixPath) and not isinstance(item, str) for item in value):
+            raise ValueError(f"All items in `files` must be PosixPath or strings. {item} {type(item)}")
 
         # Create dictionary if the sequence is not a dictionary.
-        files: Dict[str, YamlFileConfigDict]
+        files: dict[str, YamlFileConfigDict]
         if not isinstance(value, dict):
-            files = {k: DEFAULT_YAML_FILE_CONFIG_DICT.copy() for k in value}
+            files = {k if isinstance(k, PosixPath) else Path(k): DEFAULT_YAML_FILE_CONFIG_DICT.copy() for k in value}
         elif any(not isinstance(v, dict) for v in value.values()):
             raise ValueError(f"`{item}` values must have type `dict`.")
         elif not len(value):
@@ -182,7 +179,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
 
     def get_settings_cls_value(
         self,
-        settings_cls,
+        settings_cls: Any,
         field: Literal["files", "reload"],
         default: T,
     ) -> T:
@@ -226,9 +223,9 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
 
     def _validate_loaded(
         self,
-        filename,
+        filename: Path,
         filecontent: Any,
-        bad: List[str],
+        bad: list[Path],
     ) -> Any:
         subpath = self.files[filename]["subpath"]
         if subpath is not None:
@@ -244,7 +241,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
 
         return filecontent
 
-    def validate_loaded(self, loaded: Dict[str, Any]) -> Dict[str, Dict]:
+    def validate_loaded(self, loaded: dict[Path, Any]) -> dict[str, dict[str, Any]]:
         """Extract subpath from loaded YAML.
 
         :param loaded: Loaded YAML files from :attr:`files`.
@@ -253,7 +250,7 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         :returns: :param:`Loaded` with the subpath extracted.
         """
         # Bulk validate. This will extract data from subpaths.
-        bad_files: List[str] = list()
+        bad_files: list[Path] = []
         loaded = {
             filepath: self._validate_loaded(filepath, filecontent, bad_files)
             for filepath, filecontent in loaded.items()
@@ -265,10 +262,10 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
             raise ValueError(msg)
 
         logger.debug("Merging file results.")
-        out: Dict[str, Any] = deep_update(*loaded.values())
+        out: dict[str, Any] = deep_update(*loaded.values())
         return out
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict[str, Any]:
         """Load data and validate that it is sufficiently shaped for
         ``BaseSettings``.
 
@@ -279,8 +276,8 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
         """
 
         # Check that required files exist. Find existing files.
-        required = set(fp for fp in self.files if self.files[fp]["required"])
-        existing = set(fp for fp in self.files if path.isfile(fp))
+        required = {fp for fp in self.files if self.files[fp]["required"]}
+        existing = {fp for fp in self.files if fp.is_file()}
 
         # If any required files are missing, raise an error.
         if len(bad := required - existing):
@@ -290,14 +287,12 @@ class CreateYamlSettings(PydanticBaseSettingsSource):
 
         # No required files are missing, and none exist.
         elif not (existing):
-            return dict()
+            return {}
 
         # Bulk load files (and bulk manage IO closing/opening).
-        logger.debug("Loading files %s.", ", ".join(self.files))
-        files = {filepath: open(filepath) for filepath in existing}
-        loaded_raw: Dict[str, Any] = {filepath: safe_load(file) for filepath, file in files.items()}
-        logger.debug("Closing files.")
-        _ = set(file.close() for file in files.values())
+        logger.debug("Loading files %s.", ", ".join(fp.as_posix() for fp in self.files))
+        files = {filepath: filepath.open() for filepath in existing}
+        loaded_raw: dict[Path, Any] = {filepath: safe_load(file) for filepath, file in files.items()}
 
         return self.validate_loaded(loaded_raw)
 
@@ -320,18 +315,18 @@ class BaseYamlSettings(BaseSettings):
     if TYPE_CHECKING:
         # pydantic>=2.7 checks at load time for annotated fields, and thinks that `model_config` is a model field name
         model_config: ClassVar[YamlSettingsConfigDict]
-    __yaml_files__: ClassVar[Optional[Sequence[str]]]
-    __yaml_reload__: ClassVar[Optional[bool]]
+    __yaml_files__: ClassVar[Sequence[str]]
+    __yaml_reload__: ClassVar[bool]
 
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Customizes sources for configuration. See `the pydantic docs<https://docs.pydantic.dev/latest/usage/pydantic_settings/#customise-settings-sources>`."""
 
         # Look for YAML files.

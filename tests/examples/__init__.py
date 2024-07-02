@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-from os import path
-from typing import Dict
+from pathlib import Path
 
 from pydantic import BaseModel
-from pydantic_settings import SettingsConfigDict
 
-from yaml_settings_pydantic import (
-    BaseYamlSettings,
-    YamlFileConfigDict,
-    YamlSettingsConfigDict,
-)
+from yaml_settings_pydantic import BaseYamlSettings, YamlFileConfigDict, YamlSettingsConfigDict
 
 
-def herepath(fn: str) -> str:
-    return path.realpath(path.join(path.dirname(__file__), fn))
+def herepath(filename: str) -> Path:
+    return Path(__file__).parent / filename
 
 
 class MinimalSettings(BaseYamlSettings):
@@ -43,12 +37,12 @@ class MinimalSettings(BaseYamlSettings):
             username: str
             password: str
 
-        connectionspec: Dict[str, str]
+        connectionspec: dict[str, str]
         hostspec: MyNestedDatabaseSettings
 
     # Configuration fields.
-    myFirstSetting: int
-    myDatabaseSettings: MyDataBaseSettings
+    myFirstSetting: int  # noqa: N815
+    myDatabaseSettings: MyDataBaseSettings  # noqa: N815
 
 
 class ExplicitSettings(MinimalSettings):

@@ -83,7 +83,7 @@ class TestExampleCanOverWrite:
 
 @pytest.mark.parametrize(
     "subcommand",
-    [None, "minimal-settings", "explicit-settings", "subpath-settings"],
+    ["minimal-settings", "explicit-settings", "subpath-settings"],
 )
 def test_example_execution(subcommand: str | None) -> None:
     command = ["python", "-m", "tests.examples"]

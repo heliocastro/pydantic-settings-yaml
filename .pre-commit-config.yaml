@@ -14,10 +14,11 @@ repos:
           - id: mypy
             additional_dependencies:
                 - pydantic
+                - pydantic_settings
                 - types-PyYaml==6.0
                 - pytest-mypy-plugins
 
-            args: ["--config", "pyproject.toml"]
+            args: ["--config-file", "pyproject.toml"]
 
     - repo: https://github.com/charliermarsh/ruff-pre-commit
       rev: "v0.5.0"

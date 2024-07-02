@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Set, Tuple, Type
+from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -15,30 +16,31 @@ from yaml_settings_pydantic import (
 
 
 class TestCreateYamlSettings:
-    def test_reload(self, fileDummies):
+    def test_reload(self, file_dummies: Any) -> None:
         # Test args
         with pytest.raises(ValueError):
             CreateYamlSettings(BaseYamlSettings)
 
         # Make sure it works. Check name of returned learcal
-        def create_settings(reload=None, files=None):
+        def create_settings(reload: Any | None = None, files: Any | None = None) -> Any:
             return type(
                 "Settings",
                 (BaseYamlSettings,),
-                dict(
-                    __yaml_reload__=reload or False,
-                    __yaml_files__=files or set(fileDummies),
-                ),
+                {
+                    "__yaml_reload__": reload or False,
+                    "__yaml_files__": files or set(file_dummies),
+                },
             )
 
         Settings = create_settings()
         yaml_settings = CreateYamlSettings(Settings)
         yaml_settings()
-        assert not yaml_settings.reload
+        if yaml_settings.reload:
+            raise ValueError
 
         # Malform a file.
-        bad = Settings.__yaml_files__.pop()
-        with open(bad, "w") as file:
+        bad: Path = Settings.__yaml_files__.pop()
+        with bad.open("w") as file:
             yaml.dump([], file)
 
         # Loading should not be an error as the files should not be reloaded.
@@ -52,80 +54,91 @@ class TestCreateYamlSettings:
         with pytest.raises(ValueError) as err:
             yaml_settings()
 
-        assert str(bad) in str(err.value)
+        if bad.as_posix() not in str(err.value):
+            raise ValueError
 
-        with open(bad, "w") as file:
+        with bad.open("w") as file:
             yaml.dump({}, file)
 
         yaml_settings()
 
-    def from_model_config(
-        self,
-        **kwargs,
-    ) -> Tuple[CreateYamlSettings, Type[BaseYamlSettings]]:
+    def from_model_config(self, **kwargs: Any) -> tuple[CreateYamlSettings, type[BaseYamlSettings]]:
         Settings = type(
             "Settings",
             (BaseYamlSettings,),
-            dict(model_config=YamlSettingsConfigDict(**kwargs)),
+            {"model_config": YamlSettingsConfigDict(**kwargs)},  # type: ignore
         )
         return CreateYamlSettings(Settings), Settings
 
     def test_dunders_have_priority(self) -> None:
         init_reload = True
+        foo_bar: Path = Path("foo-bar.yaml")
         yaml_settings, Settings = self.from_model_config(
-            yaml_files={"foo-bar.yaml"},
+            yaml_files={foo_bar},
             yaml_reload=init_reload,
         )
 
         default = DEFAULT_YAML_FILE_CONFIG_DICT
-        assert yaml_settings.files == {"foo-bar.yaml": default}
-        assert yaml_settings.reload == init_reload
+        if not yaml_settings.files == {foo_bar: default}:
+            raise ValueError
+        if not yaml_settings.reload == init_reload:
+            raise ValueError
 
-        final_files: Set[str] = {"spam-eggs.yaml"}
+        final_files: set[Path] = {Path("spam-eggs.yaml")}
         OverwriteSettings = type(
             "OverwriteSettings",
             (Settings,),
-            dict(__yaml_files__=final_files),
+            {"__yaml_files__": final_files},
         )
         yaml_settings = CreateYamlSettings(OverwriteSettings)
 
-        assert yaml_settings.files == {"spam-eggs.yaml": default}
-        assert yaml_settings.reload == init_reload
+        if not yaml_settings.files == {Path("spam-eggs.yaml"): default}:
+            raise ValueError
+        if not yaml_settings.reload == init_reload:
+            raise ValueError
 
     @pytest.mark.parametrize(
         "yaml_files",
         [
-            "foo.yaml",
-            {"foo.yaml"},
-            {"foo.yaml": YamlFileConfigDict(required=True, subpath=None)},
+            Path("foo.yaml"),
+            {Path("foo.yaml")},
+            {Path("foo.yaml"): YamlFileConfigDict(required=True, subpath=None)},
         ],
     )
-    def test_hydration_yaml_files(self, yaml_files) -> None:
+    def test_hydration_yaml_files(self, yaml_files: Any) -> None:
         make, _ = self.from_model_config(yaml_files=yaml_files)
 
-        assert len(make.files) == 1
-        assert isinstance(make.files, dict)
-        assert (foo := make.files.get("foo.yaml")) is not None
-        assert isinstance(foo, dict)
-        assert foo.get("required") is True
-        assert foo.get("subpath") is None
+        if not len(make.files) == 1:
+            raise ValueError
+        if not isinstance(make.files, dict):
+            raise ValueError
+        if not (foo := make.files.get(Path("foo.yaml"))):
+            raise ValueError
+        if not isinstance(foo, dict):
+            raise ValueError
+        if not foo.get("required"):
+            raise ValueError
+        if foo.get("subpath"):
+            raise ValueError
 
     def test_yaml_not_required(self) -> None:
         # Should not raise error
         make, Settings = self.from_model_config(
             yaml_files={
-                "foo.yaml": YamlFileConfigDict(
+                Path("foo.yaml"): YamlFileConfigDict(
                     required=False,
                     subpath=None,
                 ),
             },
         )
-        assert make.files.get("foo.yaml")
+        if not make.files.get(Path("foo.yaml")):
+            raise ValueError
         make.load()
 
         # Should raise error
-        make, _ = self.from_model_config(yaml_files="foo.yaml")
+        make, _ = self.from_model_config(yaml_files=Path("foo.yaml"))
         with pytest.raises(ValueError) as err:
             make.load()
 
-        assert str(err.value)
+        if not str(err.value):
+            raise ValueError
