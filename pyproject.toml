@@ -156,7 +156,7 @@ pytest-mypy = "^0.10.3"
 
 [tool.ruff.lint]
     ignore = [
-        'N802',   # function name should be lowercase
+        'N803',   # function name should be lowercase
         'N806',   # function should be lowercase
         'SIM105', # Suggest contextlib instead of try/except with pass
     ]
